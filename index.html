@@ -532,6 +532,17 @@ footer{
     </div>
   </div>
 
+  <!-- Radiación solar ThingSpeak -->
+  <div class="chart-box" style="margin-bottom:1.5rem;">
+    <div class="chart-label">// Radiación Solar — ThingSpeak en tiempo real <span>Canal 3413567</span></div>
+    <div style="display:flex;justify-content:center;overflow:hidden;border:1px solid var(--borde);background:#fff;">
+      <iframe width="100%" height="260" style="border:none;display:block;min-width:320px;max-width:100%;"
+        src="https://thingspeak.com/channels/3413567/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=15">
+      </iframe>
+    </div>
+    <div class="chart-esc"><span>últimos 60 registros</span><span>actualiza cada 15s</span></div>
+  </div>
+
   <!-- Progreso barrido -->
   <div class="prog-box" id="prog-box">
     <div class="prog-status"><div class="prog-spin"></div><span id="prog-txt">Iniciando...</span></div>
