@@ -501,7 +501,7 @@ footer{
       <div class="kpi-ref" id="kv-pmpp-ref">Placa: —</div>
     </div>
     <div class="kpi kpi-g">
-      <div class="kpi-label">Irradiancia</div>
+      <div class="kpi-label">Radiación</div>
       <div class="kpi-val" id="kv-g">—</div>
       <div class="kpi-unit">W/m²</div>
       <div class="kpi-ref" id="kv-tc">T° célula: —</div>
@@ -2450,6 +2450,28 @@ window.onload = function() {
   ventana.document.write(htmlPlaca);
   ventana.document.close();
 }
+
+// ═══════════════════════════════════════════════════════
+// RADIACIÓN SOLAR — ThingSpeak live
+// ═══════════════════════════════════════════════════════
+function fetchRadiacion() {
+  fetch('https://api.thingspeak.com/channels/3413567/feeds/last.json?api_key=GBG9U1F68TTU8WRV')
+    .then(r => r.json())
+    .then(d => {
+      const val = parseFloat(d.field1);
+      if (!isNaN(val)) {
+        const v = Math.round(val);
+        document.getElementById('kv-g').textContent = v;
+        document.getElementById('sb-g').textContent = 'G: ' + v + ' W/m²';
+        document.getElementById('sd-g').style.background = 'var(--verde)';
+      }
+    })
+    .catch(() => {
+      document.getElementById('sd-g').style.background = 'var(--rojo)';
+    });
+}
+setInterval(fetchRadiacion, 15000);
+fetchRadiacion();
 
 // Animación OLED preview
 setInterval(()=>{
