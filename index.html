@@ -1587,10 +1587,10 @@ function simularBarrido() {
   const Voc_nom  = 38.4, Isc_nom  = 8.9;
   const canal    = Voc_nom > 10 ? 'A' : 'B';
   const factor   = 0.75 + Math.random()*0.22;
-  const G_sim    = 900 + Math.random()*100;
+  const G_sim    = G_PROM > 0 ? G_PROM : 900 + Math.random()*100;
   const Tc_sim   = 28 + Math.random()*12;
 
-  G_PROM = G_sim; TC_VAL = Tc_sim;
+  TC_VAL = Tc_sim;
 
   // Actualizar badge de canal
   const badge = document.getElementById('canal-badge');
@@ -2470,8 +2470,9 @@ function fetchRadiacion() {
     .then(r => r.json())
     .then(d => {
       const val = parseFloat(d.field2);
-      if (!isNaN(val)) {
+      if (!isNaN(val) && val > 0) {
         const v = Math.round(val);
+        G_PROM = v;
         document.getElementById('kv-g').textContent = v;
         document.getElementById('sb-g').textContent = 'G: ' + v + ' W/m²';
         document.getElementById('sd-g').style.background = 'var(--verde)';
