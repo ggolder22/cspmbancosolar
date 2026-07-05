@@ -529,6 +529,127 @@ footer{
     </div>
   </div>
 
+  <!-- Open-Meteo — Temperatura y clima -->
+  <div class="chart-box" style="margin-bottom:1.5rem;">
+    <div class="chart-label">// Temperatura de Célula <span>Corrección IEC 60904-1 · Γ = -0.43%/°C</span></div>
+
+    <!-- Tabs -->
+    <div style="display:flex;border:1px solid var(--borde);margin-bottom:1rem;">
+      <button id="tab-api" onclick="setMeteoTab('api')"
+        style="flex:1;padding:0.7rem;font-family:'Courier Prime',monospace;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;cursor:pointer;background:var(--sol);color:#000;border:none;transition:all 0.2s;">
+        ⊕ API automática
+      </button>
+      <button id="tab-man" onclick="setMeteoTab('manual')"
+        style="flex:1;padding:0.7rem;font-family:'Courier Prime',monospace;font-size:0.75rem;font-weight:700;letter-spacing:0.06em;cursor:pointer;background:transparent;color:var(--suave);border:none;border-left:1px solid var(--borde);transition:all 0.2s;">
+        ✎ Ingresar manual
+      </button>
+    </div>
+
+    <!-- Panel API -->
+    <div id="meteo-api-panel">
+      <div style="display:flex;align-items:center;gap:1.2rem;padding:0.9rem 1rem;background:var(--s3);border:1px solid var(--borde);margin-bottom:0.8rem;">
+        <div style="font-family:'Fraunces',serif;font-weight:900;font-size:2.8rem;letter-spacing:-0.04em;line-height:1;" id="meteo-temp-big">—</div>
+        <div>
+          <div id="meteo-status-badge" style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.62rem;letter-spacing:0.1em;padding:0.15rem 0.55rem;border:1px solid rgba(245,197,24,0.3);color:var(--sol);background:var(--sol3);margin-bottom:0.4rem;">
+            ○ Cargando...
+          </div>
+          <div style="font-size:0.72rem;color:var(--suave);line-height:1.8;">
+            Temperatura del aire · Open-Meteo · San Juan<br>
+            Tc célula = T_aire + (G/800) × (NOCT−20)
+          </div>
+        </div>
+      </div>
+      <!-- Datos extra -->
+      <div id="meteo-extra" style="display:none;margin-bottom:0.8rem;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--borde);">
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">Humedad</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1rem;" id="meteo-hum">—</div>
+          </div>
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">Viento</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1rem;" id="meteo-viento">—</div>
+          </div>
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">Nubosidad</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1rem;" id="meteo-nub">—</div>
+          </div>
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">Rad. Global API</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1rem;" id="meteo-rad">—</div>
+          </div>
+        </div>
+      </div>
+      <!-- Radiación Satelital EUMETSAT -->
+      <div id="meteo-sat" style="display:none;margin-top:0.8rem;">
+        <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--sol);border-bottom:1px solid var(--borde);padding-bottom:0.4rem;margin-bottom:0.6rem;">
+          // Radiación Satelital — EUMETSAT · San Juan
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--borde);margin-bottom:0.6rem;">
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">GHI Global</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1.1rem;" id="sat-ghi">—</div>
+          </div>
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">DNI Directa</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1.1rem;" id="sat-dni">—</div>
+          </div>
+          <div style="background:var(--s3);padding:0.7rem 0.9rem;">
+            <div style="font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.2rem;">GTI Panel 30°N</div>
+            <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1.1rem;color:var(--sol);" id="sat-gti">—</div>
+          </div>
+        </div>
+        <div style="font-size:0.62rem;color:var(--suave);display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+          <span>EUMETSAT MSG · resolución 5km · ~2h delay</span><span id="sat-hora">—</span>
+        </div>
+        <div id="sat-comp" style="display:none;padding:0.6rem 0.9rem;background:var(--s1);border:1px solid var(--borde);">
+          <div style="font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.4rem;">Sensor ThingSpeak vs. Satélite GHI</div>
+          <div style="display:flex;gap:1.8rem;align-items:baseline;flex-wrap:wrap;">
+            <div><span style="font-size:0.65rem;color:var(--suave);">Sensor: </span><span style="font-family:'Fraunces',serif;font-weight:700;" id="comp-sensor">—</span></div>
+            <div><span style="font-size:0.65rem;color:var(--suave);">Satélite: </span><span style="font-family:'Fraunces',serif;font-weight:700;" id="comp-sat">—</span></div>
+            <div><span style="font-size:0.65rem;color:var(--suave);">Δ: </span><span style="font-family:'Fraunces',serif;font-weight:700;" id="comp-delta">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel manual -->
+    <div id="meteo-man-panel" style="display:none;margin-bottom:0.8rem;">
+      <div class="param-grid">
+        <div class="param-field">
+          <label>T° Aire <em>°C</em></label>
+          <div class="param-wrap">
+            <input class="param-input" id="input-taire" type="number" value="25" step="0.5" oninput="calcMeteo()">
+            <span class="param-unidad">°C</span>
+          </div>
+        </div>
+        <div class="param-field">
+          <label>NOCT <em>°C</em></label>
+          <div class="param-wrap">
+            <input class="param-input" id="input-noct" type="number" value="45" step="1" oninput="calcMeteo()">
+            <span class="param-unidad">°C</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPIs resultado -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--borde);">
+      <div style="background:var(--s2);padding:0.9rem 1rem;">
+        <div style="font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--suave);margin-bottom:0.3rem;">T° Aire</div>
+        <div style="font-family:'Fraunces',serif;font-weight:900;font-size:1.6rem;" id="meteo-taire">—</div>
+      </div>
+      <div style="background:var(--s2);padding:0.9rem 1rem;">
+        <div style="font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--suave);margin-bottom:0.3rem;">Tc Célula Est.</div>
+        <div style="font-family:'Fraunces',serif;font-weight:900;font-size:1.6rem;color:var(--verde);" id="meteo-tc">—</div>
+      </div>
+      <div style="background:var(--s2);padding:0.9rem 1rem;">
+        <div style="font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--suave);margin-bottom:0.3rem;">Factor Temp.</div>
+        <div style="font-family:'Fraunces',serif;font-weight:900;font-size:1.6rem;" id="meteo-factor">—</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ThingSpeak — gráficos en tiempo real -->
   <div class="g2" style="margin-bottom:1.5rem;">
     <div class="chart-box" style="margin-bottom:0;">
@@ -2458,6 +2579,115 @@ window.onload = function() {
   ventana.document.write(htmlPlaca);
   ventana.document.close();
 }
+
+// ═══════════════════════════════════════════════════════
+// OPEN-METEO — Clima San Juan (-31.5375, -68.5364)
+// ═══════════════════════════════════════════════════════
+const NOCT_DEF = 45;
+let meteoTab = 'api';
+
+function setMeteoTab(tab) {
+  meteoTab = tab;
+  document.getElementById('meteo-api-panel').style.display = tab === 'api' ? '' : 'none';
+  document.getElementById('meteo-man-panel').style.display = tab === 'manual' ? '' : 'none';
+  document.getElementById('tab-api').style.cssText += ';background:' + (tab==='api'?'var(--sol)':'transparent') + ';color:' + (tab==='api'?'#000':'var(--suave)');
+  document.getElementById('tab-man').style.cssText += ';background:' + (tab==='man'?'var(--sol)':'transparent') + ';color:' + (tab==='man'?'#000':'var(--suave)');
+  if (tab === 'manual') calcMeteo();
+}
+
+function calcMeteo(tAire, noct) {
+  const ta  = tAire !== undefined ? tAire
+             : parseFloat(document.getElementById('input-taire').value) || 25;
+  const nc  = noct  !== undefined ? noct
+             : parseFloat(document.getElementById('input-noct').value)  || 45;
+  const G   = G_PROM > 0 ? G_PROM : 1000;
+  const tc  = ta + (G / 800) * (nc - 20);
+  const fac = GAMMA_T * (tc - 25) * 100;
+
+  TC_VAL = tc;
+
+  const el = id => document.getElementById(id);
+  el('meteo-taire').textContent   = ta.toFixed(1) + '°C';
+  el('meteo-tc').textContent      = tc.toFixed(1) + '°C';
+  el('meteo-tc').style.color      = tc > 55 ? 'var(--rojo)' : tc > 38 ? 'var(--naranja)' : 'var(--verde)';
+  el('meteo-factor').textContent  = (fac >= 0 ? '+' : '') + fac.toFixed(2) + '%';
+  el('meteo-factor').style.color  = fac < 0 ? 'var(--rojo)' : 'var(--verde)';
+  el('kv-tc').textContent         = 'T° célula: ' + tc.toFixed(1) + '°C';
+  if (meteoTab === 'api') el('meteo-temp-big').textContent = ta.toFixed(1) + '°C';
+}
+
+function fetchMeteo() {
+  const url = 'https://api.open-meteo.com/v1/forecast' +
+    '?latitude=-31.5375&longitude=-68.5364' +
+    '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation,cloud_cover' +
+    '&wind_speed_unit=kmh&timezone=America%2FArgentina%2FSan_Juan';
+  fetch(url)
+    .then(r => r.json())
+    .then(d => {
+      const c = d.current;
+      const badge = document.getElementById('meteo-status-badge');
+      badge.textContent = '✓ Open-Meteo Live';
+      badge.style.cssText += ';color:var(--verde);background:var(--verde-bg);border-color:rgba(34,197,94,0.3)';
+      document.getElementById('meteo-hum').textContent    = c.relative_humidity_2m + '%';
+      document.getElementById('meteo-viento').textContent = c.wind_speed_10m.toFixed(1) + ' km/h';
+      document.getElementById('meteo-nub').textContent    = c.cloud_cover + '%';
+      document.getElementById('meteo-rad').textContent    = Math.round(c.shortwave_radiation) + ' W/m²';
+      document.getElementById('meteo-extra').style.display = '';
+      calcMeteo(c.temperature_2m, NOCT_DEF);
+    })
+    .catch(() => {
+      const badge = document.getElementById('meteo-status-badge');
+      badge.textContent = '✗ Sin conexión API';
+      badge.style.color = 'var(--rojo)';
+    });
+}
+setInterval(fetchMeteo, 300000);
+fetchMeteo();
+
+// ═══════════════════════════════════════════════════════
+// SATELLITE RADIATION API — EUMETSAT · San Juan
+// ═══════════════════════════════════════════════════════
+function fetchSatelite() {
+  const fmt = d => d.toISOString().slice(0,10);
+  const hoy  = new Date();
+  const ayer = new Date(hoy); ayer.setDate(ayer.getDate()-1);
+  const url = 'https://satellite-api.open-meteo.com/v1/archive' +
+    '?latitude=-31.5375&longitude=-68.5364' +
+    '&start_date=' + fmt(ayer) + '&end_date=' + fmt(hoy) +
+    '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
+    '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
+  fetch(url)
+    .then(r => r.json())
+    .then(d => {
+      const times = d.hourly.time;
+      const ghi   = d.hourly.shortwave_radiation;
+      const dni   = d.hourly.direct_normal_irradiance;
+      const gti   = d.hourly.global_tilted_irradiance;
+      let last = -1;
+      for (let i = times.length - 1; i >= 0; i--) {
+        if (ghi[i] !== null && ghi[i] > 0) { last = i; break; }
+      }
+      if (last < 0) return;
+      const el = id => document.getElementById(id);
+      el('sat-ghi').textContent = Math.round(ghi[last]) + ' W/m²';
+      el('sat-dni').textContent = Math.round(dni[last]) + ' W/m²';
+      el('sat-gti').textContent = Math.round(gti[last]) + ' W/m²';
+      el('sat-hora').textContent = 'Dato: ' + times[last].replace('T',' ') + 'h';
+      el('meteo-sat').style.display = '';
+      if (G_PROM > 0) {
+        const delta = G_PROM - Math.round(ghi[last]);
+        const pct   = (Math.abs(delta) / Math.round(ghi[last]) * 100).toFixed(1);
+        el('comp-sensor').textContent = G_PROM + ' W/m²';
+        el('comp-sat').textContent    = Math.round(ghi[last]) + ' W/m²';
+        el('comp-delta').textContent  = (delta >= 0 ? '+' : '') + delta + ' W/m² (' + pct + '%)';
+        el('comp-delta').style.color  = Math.abs(delta) < 80 ? 'var(--verde)' : Math.abs(delta) < 200 ? 'var(--naranja)' : 'var(--rojo)';
+        el('sat-comp').style.display  = '';
+      }
+    })
+    .catch(e => console.warn('Satellite API:', e));
+}
+setInterval(fetchSatelite, 1800000);
+fetchSatelite();
 
 // ═══════════════════════════════════════════════════════
 // RADIACIÓN SOLAR — ThingSpeak live
