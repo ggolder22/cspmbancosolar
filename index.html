@@ -2687,15 +2687,15 @@ function fetchSatelite() {
   const url = 'https://satellite-api.open-meteo.com/v1/archive' +
     '?latitude=-31.5375&longitude=-68.5364' +
     '&start_date=' + fmtFecha(hace2) + '&end_date=' + fmtFecha(hoy) +
-    '&minutely_15=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
-    '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
+    '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
+    '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan&temporal_resolution=native';
   fetch(url)
     .then(r => r.json())
     .then(d => {
-      const times = d.minutely_15.time;
-      const ghi   = d.minutely_15.shortwave_radiation;
-      const dni   = d.minutely_15.direct_normal_irradiance;
-      const gti   = d.minutely_15.global_tilted_irradiance;
+      const times = d.hourly.time;
+      const ghi   = d.hourly.shortwave_radiation;
+      const dni   = d.hourly.direct_normal_irradiance;
+      const gti   = d.hourly.global_tilted_irradiance;
 
       // Buscar el índice cuyo timestamp es más cercano a (ahora - 2h)
       // El delay satelital real es ~2h para EUMETSAT sobre Argentina
@@ -2743,60 +2743,26 @@ fetchSatelite();
 // ═══════════════════════════════════════════════════════
 // DESCARGA CALIBRACIÓN — Rango de fechas
 // ═══════════════════════════════════════════════════════
-function descargarArchivo(nombre, texto) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + texto], {type:'text/csv;charset=utf-8'}));
-  a.download = nombre; a.click();
-}
-
 function descargarRango() {
   const desde = document.getElementById('dl-desde').value;
   const hasta = document.getElementById('dl-hasta').value;
   if (!desde || !hasta) { alert('Seleccioná las fechas de inicio y fin.'); return; }
   if (desde > hasta)    { alert('La fecha de inicio debe ser anterior al fin.'); return; }
 
-  const btn = document.getElementById('btn-dl');
-  btn.textContent = '⏳ Descargando...'; btn.disabled = true;
-
+  // Satélite — descarga directa CSV desde Open-Meteo (15 min nativos)
   const satUrl = 'https://satellite-api.open-meteo.com/v1/archive' +
     '?latitude=-31.5375&longitude=-68.5364' +
     '&start_date=' + desde + '&end_date=' + hasta +
-    '&minutely_15=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
-    '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
+    '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
+    '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan' +
+    '&temporal_resolution=native&format=csv';
 
-  const tsUrl = 'https://api.thingspeak.com/channels/3413567/feeds.json' +
+  // ThingSpeak — descarga directa CSV
+  const tsUrl = 'https://api.thingspeak.com/channels/3413567/feeds.csv' +
     '?api_key=GBG9U1F68TTU8WRV&start=' + desde + '%2000:00:00&end=' + hasta + '%2023:59:59&results=8000';
 
-  Promise.all([fetch(satUrl).then(r=>r.json()), fetch(tsUrl).then(r=>r.json())])
-    .then(([sat, ts]) => {
-      // CSV 1 — Satélite (hora local Argentina)
-      let satCsv = 'hora_local_ARG,GHI_Wm2,DNI_Wm2,GTI_Panel30N_Wm2\n';
-      const times = sat.minutely_15.time;
-      const ghi = sat.minutely_15.shortwave_radiation;
-      const dni = sat.minutely_15.direct_normal_irradiance;
-      const gti = sat.minutely_15.global_tilted_irradiance;
-      for (let i = 0; i < times.length; i++) {
-        satCsv += `${times[i].replace('T',' ')},${ghi[i]??''},${dni[i]??''},${gti[i]??''}\n`;
-      }
-      descargarArchivo('satelite_' + desde + '_' + hasta + '.csv', satCsv);
-
-      // CSV 2 — ThingSpeak (UTC → hora local Argentina -3h)
-      setTimeout(() => {
-        let tsCsv = 'hora_local_ARG,field1_Icel_mA,field2_G_Wm2\n';
-        ts.feeds.forEach(f => {
-          const d = new Date(f.created_at);
-          d.setHours(d.getHours() - 3);
-          const hora = d.toISOString().replace('T',' ').slice(0,19);
-          tsCsv += `${hora},${f.field1??''},${f.field2??''}\n`;
-        });
-        descargarArchivo('thingspeak_' + desde + '_' + hasta + '.csv', tsCsv);
-        btn.textContent = '⬇ Descargar Satélite + ThingSpeak'; btn.disabled = false;
-      }, 800);
-    })
-    .catch(e => {
-      alert('Error: ' + e.message);
-      btn.textContent = '⬇ Descargar Satélite + ThingSpeak'; btn.disabled = false;
-    });
+  window.open(satUrl, '_blank');
+  setTimeout(() => window.open(tsUrl, '_blank'), 800);
 }
 
 // Inicializar fechas del picker: última semana
