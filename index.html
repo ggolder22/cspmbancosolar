@@ -672,6 +672,28 @@ footer{
     </div>
   </div>
 
+  <!-- Descarga de datos para calibración -->
+  <div class="chart-box" style="margin-bottom:1.5rem;">
+    <div class="chart-label">// Descarga para calibración — Satélite + ThingSpeak <span>Open-Meteo · EUMETSAT</span></div>
+    <div style="font-size:0.72rem;color:var(--suave);line-height:1.9;margin-bottom:1rem;">
+      Seleccioná el rango de fechas → descarga dos CSVs listos para cruzar en Excel ·
+      <strong style="color:var(--sol);">K = GHI_sat / I_cel_mA</strong>
+    </div>
+    <div class="param-grid" style="margin-bottom:1rem;">
+      <div class="param-field">
+        <label>Desde <em>fecha</em></label>
+        <input class="param-input" type="date" id="dl-desde" style="font-size:1rem;padding:0.5rem 0.7rem;">
+      </div>
+      <div class="param-field">
+        <label>Hasta <em>fecha</em></label>
+        <input class="param-input" type="date" id="dl-hasta" style="font-size:1rem;padding:0.5rem 0.7rem;">
+      </div>
+    </div>
+    <div class="btn-group" style="margin-bottom:0;">
+      <button class="btn btn-sol" id="btn-dl" onclick="descargarRango()">⬇ Descargar Satélite + ThingSpeak</button>
+    </div>
+  </div>
+
   <!-- Progreso barrido -->
   <div class="prog-box" id="prog-box">
     <div class="prog-status"><div class="prog-spin"></div><span id="prog-txt">Iniciando...</span></div>
@@ -2646,14 +2668,25 @@ fetchMeteo();
 
 // ═══════════════════════════════════════════════════════
 // SATELLITE RADIATION API — EUMETSAT · San Juan
+// Búsqueda por tiempo: encuentra el dato más cercano a (ahora - 2h)
 // ═══════════════════════════════════════════════════════
+let SAT_LAST = null;
+
+function fmtFecha(d) { return d.toISOString().slice(0,10); }
+
+function utcToArg(isoStr) {
+  // Convierte UTC ISO a hora local Argentina (UTC-3)
+  const d = new Date(isoStr);
+  d.setHours(d.getHours() - 3);
+  return d.toISOString().replace('T',' ').slice(0,16);
+}
+
 function fetchSatelite() {
-  const fmt = d => d.toISOString().slice(0,10);
   const hoy  = new Date();
-  const ayer = new Date(hoy); ayer.setDate(ayer.getDate()-1);
+  const hace2 = new Date(hoy); hace2.setDate(hace2.getDate()-2);
   const url = 'https://satellite-api.open-meteo.com/v1/archive' +
     '?latitude=-31.5375&longitude=-68.5364' +
-    '&start_date=' + fmt(ayer) + '&end_date=' + fmt(hoy) +
+    '&start_date=' + fmtFecha(hace2) + '&end_date=' + fmtFecha(hoy) +
     '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
     '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
   fetch(url)
@@ -2663,31 +2696,116 @@ function fetchSatelite() {
       const ghi   = d.hourly.shortwave_radiation;
       const dni   = d.hourly.direct_normal_irradiance;
       const gti   = d.hourly.global_tilted_irradiance;
-      let last = -1;
-      for (let i = times.length - 1; i >= 0; i--) {
-        if (ghi[i] !== null && ghi[i] > 0) { last = i; break; }
+
+      // Buscar el índice cuyo timestamp es más cercano a (ahora - 2h)
+      // El delay satelital real es ~2h para EUMETSAT sobre Argentina
+      const targetMs = hoy.getTime() - 2 * 3600000;
+      let bestIdx = -1, bestDiff = Infinity;
+      for (let i = 0; i < times.length; i++) {
+        if (ghi[i] === null || ghi[i] < 0) continue;
+        // times[] vienen en hora local Argentina (timezone fue seteado)
+        const tMs = new Date(times[i]).getTime();
+        const diff = Math.abs(tMs - targetMs);
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
       }
-      if (last < 0) return;
+      if (bestIdx < 0) return;
+
+      SAT_LAST = {
+        hora: times[bestIdx],
+        ghi:  Math.round(ghi[bestIdx]),
+        dni:  Math.round(dni[bestIdx]),
+        gti:  Math.round(gti[bestIdx])
+      };
+
       const el = id => document.getElementById(id);
-      el('sat-ghi').textContent = Math.round(ghi[last]) + ' W/m²';
-      el('sat-dni').textContent = Math.round(dni[last]) + ' W/m²';
-      el('sat-gti').textContent = Math.round(gti[last]) + ' W/m²';
-      el('sat-hora').textContent = 'Dato: ' + times[last].replace('T',' ') + 'h';
+      el('sat-ghi').textContent = SAT_LAST.ghi + ' W/m²';
+      el('sat-dni').textContent = SAT_LAST.dni + ' W/m²';
+      el('sat-gti').textContent = SAT_LAST.gti + ' W/m²';
+      el('sat-hora').textContent = 'Dato satelital: ' + SAT_LAST.hora.replace('T',' ') + 'h (hora local)';
       el('meteo-sat').style.display = '';
+
       if (G_PROM > 0) {
-        const delta = G_PROM - Math.round(ghi[last]);
-        const pct   = (Math.abs(delta) / Math.round(ghi[last]) * 100).toFixed(1);
+        const delta = G_PROM - SAT_LAST.ghi;
+        const pct   = SAT_LAST.ghi > 0 ? (Math.abs(delta) / SAT_LAST.ghi * 100).toFixed(1) : '—';
         el('comp-sensor').textContent = G_PROM + ' W/m²';
-        el('comp-sat').textContent    = Math.round(ghi[last]) + ' W/m²';
+        el('comp-sat').textContent    = SAT_LAST.ghi + ' W/m²';
         el('comp-delta').textContent  = (delta >= 0 ? '+' : '') + delta + ' W/m² (' + pct + '%)';
         el('comp-delta').style.color  = Math.abs(delta) < 80 ? 'var(--verde)' : Math.abs(delta) < 200 ? 'var(--naranja)' : 'var(--rojo)';
         el('sat-comp').style.display  = '';
       }
+
     })
     .catch(e => console.warn('Satellite API:', e));
 }
 setInterval(fetchSatelite, 1800000);
 fetchSatelite();
+
+// ═══════════════════════════════════════════════════════
+// DESCARGA CALIBRACIÓN — Rango de fechas
+// ═══════════════════════════════════════════════════════
+function descargarArchivo(nombre, texto) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + texto], {type:'text/csv;charset=utf-8'}));
+  a.download = nombre; a.click();
+}
+
+function descargarRango() {
+  const desde = document.getElementById('dl-desde').value;
+  const hasta = document.getElementById('dl-hasta').value;
+  if (!desde || !hasta) { alert('Seleccioná las fechas de inicio y fin.'); return; }
+  if (desde > hasta)    { alert('La fecha de inicio debe ser anterior al fin.'); return; }
+
+  const btn = document.getElementById('btn-dl');
+  btn.textContent = '⏳ Descargando...'; btn.disabled = true;
+
+  const satUrl = 'https://satellite-api.open-meteo.com/v1/archive' +
+    '?latitude=-31.5375&longitude=-68.5364' +
+    '&start_date=' + desde + '&end_date=' + hasta +
+    '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
+    '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
+
+  const tsUrl = 'https://api.thingspeak.com/channels/3413567/feeds.json' +
+    '?api_key=GBG9U1F68TTU8WRV&start=' + desde + '%2000:00:00&end=' + hasta + '%2023:59:59&results=8000';
+
+  Promise.all([fetch(satUrl).then(r=>r.json()), fetch(tsUrl).then(r=>r.json())])
+    .then(([sat, ts]) => {
+      // CSV 1 — Satélite (hora local Argentina)
+      let satCsv = 'hora_local_ARG,GHI_Wm2,DNI_Wm2,GTI_Panel30N_Wm2\n';
+      const times = sat.hourly.time;
+      const ghi = sat.hourly.shortwave_radiation;
+      const dni = sat.hourly.direct_normal_irradiance;
+      const gti = sat.hourly.global_tilted_irradiance;
+      for (let i = 0; i < times.length; i++) {
+        satCsv += `${times[i].replace('T',' ')},${ghi[i]??''},${dni[i]??''},${gti[i]??''}\n`;
+      }
+      descargarArchivo('satelite_' + desde + '_' + hasta + '.csv', satCsv);
+
+      // CSV 2 — ThingSpeak (UTC → hora local Argentina -3h)
+      setTimeout(() => {
+        let tsCsv = 'hora_local_ARG,field1_Icel_mA,field2_G_Wm2\n';
+        ts.feeds.forEach(f => {
+          const d = new Date(f.created_at);
+          d.setHours(d.getHours() - 3);
+          const hora = d.toISOString().replace('T',' ').slice(0,19);
+          tsCsv += `${hora},${f.field1??''},${f.field2??''}\n`;
+        });
+        descargarArchivo('thingspeak_' + desde + '_' + hasta + '.csv', tsCsv);
+        btn.textContent = '⬇ Descargar Satélite + ThingSpeak'; btn.disabled = false;
+      }, 800);
+    })
+    .catch(e => {
+      alert('Error: ' + e.message);
+      btn.textContent = '⬇ Descargar Satélite + ThingSpeak'; btn.disabled = false;
+    });
+}
+
+// Inicializar fechas del picker: última semana
+(function() {
+  const hoy   = new Date();
+  const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7);
+  document.getElementById('dl-hasta').value = fmtFecha(hoy);
+  document.getElementById('dl-desde').value = fmtFecha(hace7);
+})();
 
 // ═══════════════════════════════════════════════════════
 // RADIACIÓN SOLAR — ThingSpeak live
