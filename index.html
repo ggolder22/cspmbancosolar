@@ -2687,15 +2687,15 @@ function fetchSatelite() {
   const url = 'https://satellite-api.open-meteo.com/v1/archive' +
     '?latitude=-31.5375&longitude=-68.5364' +
     '&start_date=' + fmtFecha(hace2) + '&end_date=' + fmtFecha(hoy) +
-    '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
+    '&minutely_15=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
     '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
   fetch(url)
     .then(r => r.json())
     .then(d => {
-      const times = d.hourly.time;
-      const ghi   = d.hourly.shortwave_radiation;
-      const dni   = d.hourly.direct_normal_irradiance;
-      const gti   = d.hourly.global_tilted_irradiance;
+      const times = d.minutely_15.time;
+      const ghi   = d.minutely_15.shortwave_radiation;
+      const dni   = d.minutely_15.direct_normal_irradiance;
+      const gti   = d.minutely_15.global_tilted_irradiance;
 
       // Buscar el índice cuyo timestamp es más cercano a (ahora - 2h)
       // El delay satelital real es ~2h para EUMETSAT sobre Argentina
@@ -2761,7 +2761,7 @@ function descargarRango() {
   const satUrl = 'https://satellite-api.open-meteo.com/v1/archive' +
     '?latitude=-31.5375&longitude=-68.5364' +
     '&start_date=' + desde + '&end_date=' + hasta +
-    '&hourly=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
+    '&minutely_15=shortwave_radiation,direct_normal_irradiance,global_tilted_irradiance' +
     '&tilt=30&azimuth=0&timezone=America%2FArgentina%2FSan_Juan';
 
   const tsUrl = 'https://api.thingspeak.com/channels/3413567/feeds.json' +
@@ -2771,10 +2771,10 @@ function descargarRango() {
     .then(([sat, ts]) => {
       // CSV 1 — Satélite (hora local Argentina)
       let satCsv = 'hora_local_ARG,GHI_Wm2,DNI_Wm2,GTI_Panel30N_Wm2\n';
-      const times = sat.hourly.time;
-      const ghi = sat.hourly.shortwave_radiation;
-      const dni = sat.hourly.direct_normal_irradiance;
-      const gti = sat.hourly.global_tilted_irradiance;
+      const times = sat.minutely_15.time;
+      const ghi = sat.minutely_15.shortwave_radiation;
+      const dni = sat.minutely_15.direct_normal_irradiance;
+      const gti = sat.minutely_15.global_tilted_irradiance;
       for (let i = 0; i < times.length; i++) {
         satCsv += `${times[i].replace('T',' ')},${ghi[i]??''},${dni[i]??''},${gti[i]??''}\n`;
       }
