@@ -672,6 +672,42 @@ footer{
     </div>
   </div>
 
+  <!-- Solcast — Radiación real tiempo real -->
+  <div class="chart-box" style="margin-bottom:1.5rem;">
+    <div class="chart-label">// Solcast — Radiación Real <span>world_radiation · estimated_actuals · 30 min · ~15 min delay</span></div>
+    <div class="nota" style="margin-bottom:1rem;">
+      <strong>Créditos limitados.</strong> Usá el botón manualmente en momentos clave del día para calibrar tu piranómetro. Muestra el K factor sugerido para actualizar el firmware.
+    </div>
+    <button class="btn btn-sol" id="btn-solcast" onclick="fetchSolcast()" style="margin-bottom:1rem;">☀ Consultar Solcast</button>
+    <div id="solcast-empty" style="font-size:0.72rem;color:var(--suave);">Resolución 30 min · Delay ~15 min · GHI / DNI / DHI reales para San Juan</div>
+    <div id="solcast-result" style="display:none;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--borde);margin-bottom:0.8rem;">
+        <div style="background:var(--s2);padding:0.9rem 1rem;">
+          <div style="font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--suave);margin-bottom:0.3rem;">GHI Global</div>
+          <div style="font-family:'Fraunces',serif;font-weight:900;font-size:1.6rem;" id="sc-ghi">—</div>
+        </div>
+        <div style="background:var(--s2);padding:0.9rem 1rem;">
+          <div style="font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--suave);margin-bottom:0.3rem;">DNI Directa</div>
+          <div style="font-family:'Fraunces',serif;font-weight:900;font-size:1.6rem;" id="sc-dni">—</div>
+        </div>
+        <div style="background:var(--s2);padding:0.9rem 1rem;">
+          <div style="font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--suave);margin-bottom:0.3rem;">DHI Difusa</div>
+          <div style="font-family:'Fraunces',serif;font-weight:900;font-size:1.6rem;" id="sc-dhi">—</div>
+        </div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--suave);margin-bottom:0.8rem;" id="sc-hora">—</div>
+      <div style="padding:0.7rem 0.9rem;background:var(--s1);border:1px solid var(--borde);">
+        <div style="font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--suave);margin-bottom:0.5rem;">Calibración · Tu sensor vs. Solcast GHI</div>
+        <div style="display:flex;gap:2rem;align-items:baseline;flex-wrap:wrap;">
+          <div><span style="font-size:0.65rem;color:var(--suave);">Sensor G: </span><span style="font-family:'Fraunces',serif;font-weight:700;" id="sc-sensor">—</span></div>
+          <div><span style="font-size:0.65rem;color:var(--suave);">Solcast GHI: </span><span style="font-family:'Fraunces',serif;font-weight:700;" id="sc-ref">—</span></div>
+          <div><span style="font-size:0.65rem;color:var(--suave);">Δ: </span><span style="font-family:'Fraunces',serif;font-weight:700;" id="sc-delta">—</span></div>
+          <div><span style="font-size:0.65rem;color:var(--suave);">K sugerido: </span><span style="font-family:'Fraunces',serif;font-weight:900;font-size:1.1rem;color:var(--sol);" id="sc-k">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Descarga de datos para calibración -->
   <div class="chart-box" style="margin-bottom:1.5rem;">
     <div class="chart-label">// Descarga para calibración — Satélite + ThingSpeak <span>Open-Meteo · EUMETSAT</span></div>
@@ -2772,6 +2808,67 @@ function descargarRango() {
   document.getElementById('dl-hasta').value = fmtFecha(hoy);
   document.getElementById('dl-desde').value = fmtFecha(hace7);
 })();
+
+// ═══════════════════════════════════════════════════════
+// SOLCAST — world_radiation estimated_actuals
+// ═══════════════════════════════════════════════════════
+const SOLCAST_KEY = 'cF5VUAlv-3-1tfBnjCVABV9L0Va0YtKg';
+const FACTOR_K_ACTUAL = 11.76; // W/m²/mA — valor actual en firmware
+
+function fetchSolcast() {
+  const btn = document.getElementById('btn-solcast');
+  btn.textContent = '⏳ Consultando...'; btn.disabled = true;
+
+  fetch('https://api.solcast.com.au/world_radiation/estimated_actuals' +
+    '?latitude=-31.5375&longitude=-68.5364&hours=24&period=PT30M&format=json',
+    { headers: { 'Authorization': 'Bearer ' + SOLCAST_KEY } })
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' — verificá créditos disponibles');
+      return r.json();
+    })
+    .then(d => {
+      const actuals = d.estimated_actuals;
+      // Solcast ordena del más reciente al más antiguo
+      const latest = actuals[0];
+      const ghi = Math.round(latest.ghi);
+      const dni = Math.round(latest.dni);
+      const dhi = Math.round(latest.dhi);
+
+      // Convertir period_end UTC a hora local Argentina
+      const horaLocal = new Date(latest.period_end)
+        .toLocaleString('es-AR', {timeZone:'America/Argentina/San_Juan',
+          day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+
+      const el = id => document.getElementById(id);
+      el('sc-ghi').textContent = ghi + ' W/m²';
+      el('sc-dni').textContent = dni + ' W/m²';
+      el('sc-dhi').textContent = dhi + ' W/m²';
+      el('sc-hora').textContent = 'Período: ' + horaLocal + 'h (hora local) · Resolución 30 min';
+      el('solcast-empty').style.display = 'none';
+      el('solcast-result').style.display = '';
+
+      // Calibración: K_nuevo = Solcast_GHI / I_cel_mA
+      // I_cel_mA = G_PROM / FACTOR_K_ACTUAL (estimado con K actual)
+      if (G_PROM > 0 && ghi > 0) {
+        const delta = G_PROM - ghi;
+        const pct   = (Math.abs(delta) / ghi * 100).toFixed(1);
+        const i_cel = G_PROM / FACTOR_K_ACTUAL;
+        const k_nuevo = (ghi / i_cel).toFixed(2);
+
+        el('sc-sensor').textContent = G_PROM + ' W/m²';
+        el('sc-ref').textContent    = ghi + ' W/m²';
+        el('sc-delta').textContent  = (delta >= 0 ? '+' : '') + delta + ' W/m² (' + pct + '%)';
+        el('sc-delta').style.color  = Math.abs(delta) < 50 ? 'var(--verde)' : Math.abs(delta) < 150 ? 'var(--naranja)' : 'var(--rojo)';
+        el('sc-k').textContent      = k_nuevo + ' W/m²/mA → actualizar FACTOR_K_CEL en firmware';
+      }
+
+      btn.textContent = '☀ Consultar Solcast'; btn.disabled = false;
+    })
+    .catch(e => {
+      alert('Solcast: ' + e.message);
+      btn.textContent = '☀ Consultar Solcast'; btn.disabled = false;
+    });
+}
 
 // ═══════════════════════════════════════════════════════
 // RADIACIÓN SOLAR — ThingSpeak live
