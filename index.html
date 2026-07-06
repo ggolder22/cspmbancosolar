@@ -2812,16 +2812,13 @@ function descargarRango() {
 // ═══════════════════════════════════════════════════════
 // SOLCAST — world_radiation estimated_actuals
 // ═══════════════════════════════════════════════════════
-const SOLCAST_KEY = 'cF5VUAlv-3-1tfBnjCVABV9L0Va0YtKg';
 const FACTOR_K_ACTUAL = 11.76; // W/m²/mA — valor actual en firmware
 
 function fetchSolcast() {
   const btn = document.getElementById('btn-solcast');
   btn.textContent = '⏳ Consultando...'; btn.disabled = true;
 
-  fetch('https://api.solcast.com.au/world_radiation/estimated_actuals' +
-    '?latitude=-31.5375&longitude=-68.5364&hours=24&period=PT30M&format=json',
-    { headers: { 'Authorization': 'Bearer ' + SOLCAST_KEY } })
+  fetch('/api/solcast')
     .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status + ' — verificá créditos disponibles');
       return r.json();
