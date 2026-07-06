@@ -7,37 +7,45 @@ export default async function handler(req, res) {
   const BASE = 'https://api.solcast.com.au';
 
   try {
-    // Fetch site details and actuals in parallel
-    const [siteRes, actualsRes] = await Promise.all([
-      fetch(`${BASE}/rooftop_sites/${SITE_ID}`, { headers: { Authorization: AUTH } }),
-      fetch(`${BASE}/rooftop_sites/${SITE_ID}/estimated_actuals?hours=24&period=PT30M&format=json`, { headers: { Authorization: AUTH } })
-    ]);
+    const actualsRes = await fetch(
+      `${BASE}/rooftop_sites/${SITE_ID}/estimated_actuals?hours=24&period=PT30M&format=json`,
+      { headers: { Authorization: AUTH } }
+    );
 
     if (!actualsRes.ok) {
-      res.status(actualsRes.status).json({ error: 'Solcast actuals HTTP ' + actualsRes.status });
+      const body = await actualsRes.text();
+      res.status(actualsRes.status).json({ error: 'Solcast HTTP ' + actualsRes.status, detail: body });
       return;
     }
 
-    const actuals = await actualsRes.json();
-    let capacity_kw = null;
+    const data = await actualsRes.json();
 
-    if (siteRes.ok) {
-      const site = await siteRes.json();
-      // capacity is in kW DC
-      capacity_kw = site.capacity || site.dc_capacity || null;
+    // Try to get site capacity separately — don't crash if it fails
+    let capacity_kw = null;
+    try {
+      const siteRes = await fetch(`${BASE}/rooftop_sites/${SITE_ID}`, { headers: { Authorization: AUTH } });
+      if (siteRes.ok) {
+        const site = await siteRes.json();
+        capacity_kw = site.capacity || site.dc_capacity || site.ac_capacity || null;
+        console.log('Site fields:', JSON.stringify(Object.keys(site)));
+        console.log('Site data:', JSON.stringify(site));
+      }
+    } catch (siteErr) {
+      console.log('Site fetch failed (non-fatal):', siteErr.message);
     }
 
-    // Enrich each item with estimated GHI if capacity is known
-    if (capacity_kw && actuals.estimated_actuals) {
-      actuals.estimated_actuals = actuals.estimated_actuals.map(item => ({
+    // Enrich items with estimated GHI if capacity is known
+    if (capacity_kw && data.estimated_actuals) {
+      data.estimated_actuals = data.estimated_actuals.map(item => ({
         ...item,
-        ghi_estimate: capacity_kw > 0 ? Math.round((item.pv_estimate / capacity_kw) * 1000) : null,
+        ghi_estimate: Math.round((item.pv_estimate / capacity_kw) * 1000),
         capacity_kw
       }));
     }
 
-    res.status(200).json(actuals);
+    res.status(200).json(data);
   } catch (e) {
+    console.error('Solcast handler error:', e);
     res.status(500).json({ error: e.message });
   }
 }
