@@ -674,7 +674,7 @@ footer{
 
   <!-- Solcast — Radiación real tiempo real -->
   <div class="chart-box" style="margin-bottom:1.5rem;">
-    <div class="chart-label">// Solcast — Radiación Real <span>world_radiation · estimated_actuals · 30 min · ~15 min delay</span></div>
+    <div class="chart-label">// Solcast — Radiación Real <span>rooftop_sites · estimated_actuals · 30 min · ~15 min delay</span></div>
     <div class="nota" style="margin-bottom:1rem;">
       <strong>Créditos limitados.</strong> Usá el botón manualmente en momentos clave del día para calibrar tu piranómetro. Muestra el K factor sugerido para actualizar el firmware.
     </div>
@@ -2827,9 +2827,14 @@ function fetchSolcast() {
       const actuals = d.estimated_actuals;
       // Solcast ordena del más reciente al más antiguo
       const latest = actuals[0];
-      const ghi = Math.round(latest.ghi);
-      const dni = Math.round(latest.dni);
-      const dhi = Math.round(latest.dhi);
+
+      // rooftop_sites endpoint: pv_estimate (kW) + ghi_estimate calculado en el proxy
+      const pvKw = latest.pv_estimate != null ? latest.pv_estimate.toFixed(2) : null;
+      const ghi  = latest.ghi_estimate != null ? latest.ghi_estimate
+                   : (latest.ghi != null ? Math.round(latest.ghi) : null);
+      const dni  = latest.dni != null ? Math.round(latest.dni) : null;
+      const dhi  = latest.dhi != null ? Math.round(latest.dhi) : null;
+      const capKw = latest.capacity_kw != null ? latest.capacity_kw : null;
 
       // Convertir period_end UTC a hora local Argentina
       const horaLocal = new Date(latest.period_end)
@@ -2837,15 +2842,18 @@ function fetchSolcast() {
           day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
 
       const el = id => document.getElementById(id);
-      el('sc-ghi').textContent = ghi + ' W/m²';
-      el('sc-dni').textContent = dni + ' W/m²';
-      el('sc-dhi').textContent = dhi + ' W/m²';
-      el('sc-hora').textContent = 'Período: ' + horaLocal + 'h (hora local) · Resolución 30 min';
+      el('sc-ghi').textContent = ghi != null ? ghi + ' W/m²'
+        : (pvKw != null ? pvKw + ' kW (PV)' : '—');
+      el('sc-dni').textContent = dni != null ? dni + ' W/m²' : 'N/D';
+      el('sc-dhi').textContent = dhi != null ? dhi + ' W/m²' : 'N/D';
+
+      let horaStr = 'Período: ' + horaLocal + 'h (hora local) · Resolución 30 min';
+      if (capKw) horaStr += ' · Capacidad sitio: ' + capKw + ' kWp';
+      el('sc-hora').textContent = horaStr;
       el('solcast-empty').style.display = 'none';
       el('solcast-result').style.display = '';
 
-      // Calibración: K_nuevo = Solcast_GHI / I_cel_mA
-      // I_cel_mA = G_PROM / FACTOR_K_ACTUAL (estimado con K actual)
+      // Calibración: K_nuevo = GHI_ref / I_cel_mA
       if (G_PROM > 0 && ghi > 0) {
         const delta = G_PROM - ghi;
         const pct   = (Math.abs(delta) / ghi * 100).toFixed(1);
@@ -2857,6 +2865,11 @@ function fetchSolcast() {
         el('sc-delta').textContent  = (delta >= 0 ? '+' : '') + delta + ' W/m² (' + pct + '%)';
         el('sc-delta').style.color  = Math.abs(delta) < 50 ? 'var(--verde)' : Math.abs(delta) < 150 ? 'var(--naranja)' : 'var(--rojo)';
         el('sc-k').textContent      = k_nuevo + ' W/m²/mA → actualizar FACTOR_K_CEL en firmware';
+      } else if (ghi == null && pvKw != null) {
+        el('sc-sensor').textContent = '—';
+        el('sc-ref').textContent    = pvKw + ' kW (PV est.)';
+        el('sc-delta').textContent  = 'GHI no disponible — capacidad del sitio no retornada por API';
+        el('sc-k').textContent      = '—';
       }
 
       btn.textContent = '☀ Consultar Solcast'; btn.disabled = false;
