@@ -14,6 +14,11 @@ export default async function handler(req, res) {
       return;
     }
     const data = await r.json();
+    // Debug: log first item to see available fields
+    if (data.estimated_actuals && data.estimated_actuals.length > 0) {
+      console.log('Solcast first item keys:', Object.keys(data.estimated_actuals[0]));
+      console.log('Solcast first item:', JSON.stringify(data.estimated_actuals[0]));
+    }
     res.status(200).json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
