@@ -2,8 +2,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  const url = 'https://api.solcast.com.au/world_radiation/estimated_actuals' +
-    '?latitude=-31.5375&longitude=-68.5364&hours=24&period=PT30M&format=json';
+  const url = 'https://api.solcast.com.au/rooftop_sites/84a3-293a-54d1-cb51/estimated_actuals' +
+    '?hours=24&period=PT30M&format=json';
 
   try {
     const r = await fetch(url, {
