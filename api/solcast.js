@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     const r = await fetch(url, {
-      headers: { 'Authorization': 'Bearer ' + process.env.SOLCAST_KEY }
+      headers: { 'Authorization': 'Bearer cF5VUAlv-3-1tfBnjCVABV9L0Va0YtKg' }
     });
     if (!r.ok) {
       res.status(r.status).json({ error: 'Solcast HTTP ' + r.status });
